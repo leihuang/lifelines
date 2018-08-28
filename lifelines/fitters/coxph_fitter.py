@@ -56,7 +56,7 @@ class CoxPHFitter(BaseFitter):
         self.strata = strata
 
     def fit(self, df, duration_col, event_col=None,
-            show_progress=False, initial_beta=None,
+            standardize=False, show_progress=False, initial_beta=None,
             strata=None, step_size=None, weights_col=None):
         """
         Fit the Cox Propertional Hazard model to a dataset. Tied survival times
@@ -135,14 +135,22 @@ estimate the variances. See paper "Variance estimation when using inverse probab
         self._norm_std = df.std(0)
 
         E = E.astype(bool)
-
-        hazards_ = self._newton_rhaphson(normalize(df, self._norm_mean, self._norm_std), T, E,
+        
+        if standardize:
+            df_ = normalize(df, self._norm_mean, self._norm_std)
+        else:
+            df_ = df
+            
+        hazards_ = self._newton_rhaphson(df_, T, E,
                                          weights=weights,
                                          initial_beta=initial_beta,
                                          show_progress=show_progress,
                                          step_size=step_size)
-
-        self.hazards_ = pd.DataFrame(hazards_.T, columns=df.columns, index=['coef']) / self._norm_std
+        
+        if standardize:
+            self.hazards_ = pd.DataFrame(hazards_.T, columns=df.columns, index=['coef']) / self._norm_std
+        else:
+            self.hazards_ = pd.DataFrame(hazards_.T, columns=df.columns, index=['coef'])
         self.confidence_intervals_ = self._compute_confidence_intervals()
 
         self.baseline_hazard_ = self._compute_baseline_hazards(df, T, E)
